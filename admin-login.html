@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เข้าสู่ระบบผู้ดูแล - ระบบเช็คชื่อวิทยาลัย</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', 'Kanit', sans-serif; }
+        .loader { border-top-color: #3b82f6; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <!-- Login Card -->
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <div class="bg-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="shield" class="w-8 h-8 text-blue-600"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">เข้าสู่ระบบผู้ดูแล</h1>
+                <p class="text-gray-600 mt-2">สำหรับครูและผู้ดูแลระบบเท่านั้น</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-6">
+                <div>
+                    <label for="teacher-id" class="block text-sm font-medium text-gray-700 mb-2">
+                        รหัสประจำตัวครู
+                    </label>
+                    <input type="text" id="teacher-id" required 
+                           class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                           placeholder="กรอกรหัสประจำตัว">
+                </div>
+
+                <div>
+                    <label for="teacher-password" class="block text-sm font-medium text-gray-700 mb-2">
+                        รหัสผ่าน
+                    </label>
+                    <input type="password" id="teacher-password" required 
+                           class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                           placeholder="กรอกรหัสผ่าน">
+                </div>
+
+                <button type="submit" id="login-btn" 
+                        class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center space-x-2">
+                    <i data-lucide="log-in" class="w-5 h-5"></i>
+                    <span>เข้าสู่ระบบ</span>
+                </button>
+            </form>
+
+            <!-- Links -->
+            <div class="mt-6 text-center space-y-3">
+                <a href="scan.html" class="block text-blue-600 hover:text-blue-700 font-medium">
+                    ← กลับไปหน้าสแกนใบหน้า
+                </a>
+                <a href="register.html" class="block text-gray-600 hover:text-gray-700 text-sm">
+                    ลงทะเบียนนักศึกษา
+                </a>
+            </div>
+        </div>
+
+        <!-- Info -->
+        <div class="text-center mt-6">
+            <p class="text-gray-500 text-sm">
+                ระบบจัดการข้อมูลนักศึกษาและตั้งค่าระบบ
+            </p>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 flex items-center space-x-4">
+            <div class="loader w-8 h-8 rounded-full border-4 border-gray-200 border-t-blue-600"></div>
+            <span class="text-gray-700">กำลังตรวจสอบ...</span>
+        </div>
+    </div>
+
+    <script>
+        let gasWebAppUrl = '';
+
+        window.onload = () => {
+            lucide.createIcons();
+            
+            // Load GAS URL
+            gasWebAppUrl = localStorage.getItem('gasWebAppUrl');
+            if (!gasWebAppUrl) {
+                alert('กรุณาตั้งค่า Google Apps Script URL ก่อน');
+                window.location.href = 'setup.html';
+                return;
+            }
+        };
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const loginBtn = document.getElementById('login-btn');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            
+            loginBtn.disabled = true;
+            loadingOverlay.classList.remove('hidden');
+
+            const loginData = {
+                teacherId: document.getElementById('teacher-id').value.trim(),
+                password: document.getElementById('teacher-password').value
+            };
+
+            try {
+                const response = await apiCall({
+                    action: 'verifyTeacher',
+                    data: loginData
+                });
+
+                if (response.success) {
+                    // Save teacher session
+                    localStorage.setItem('teacherSession', JSON.stringify(response.data));
+                    
+                    // Redirect to admin panel
+                    window.location.href = 'admin.html';
+                } else {
+                    alert('รหัสครูหรือรหัสผ่านไม่ถูกต้อง');
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + error.message);
+            }
+
+            loginBtn.disabled = false;
+            loadingOverlay.classList.add('hidden');
+        }
+
+        async function apiCall(payload) {
+            if (!gasWebAppUrl) {
+                throw new Error('GAS URL not configured');
+            }
+            
+            const response = await fetch(gasWebAppUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        }
+    </script>
+</body>
+</html>
