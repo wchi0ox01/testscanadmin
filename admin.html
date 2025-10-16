@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ผู้ดูแลระบบ - ระบบเช็คชื่อวิทยาลัย</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', 'Kanit', sans-serif; }
+        .loader { border-top-color: #3b82f6; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .tab-active { @apply bg-blue-600 text-white; }
+        .tab-inactive { @apply bg-gray-200 text-gray-700 hover:bg-gray-300; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-4">
+                    <div class="bg-blue-100 p-3 rounded-xl">
+                        <i data-lucide="settings" class="text-blue-600 w-8 h-8"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">ผู้ดูแลระบบ</h1>
+                        <p id="admin-info" class="text-gray-600">กำลังโหลด...</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="scan.html" class="text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-2">
+                        <i data-lucide="scan-face" class="w-5 h-5"></i>
+                        <span>หน้าสแกน</span>
+                    </a>
+                    <button onclick="logout()" class="text-red-600 hover:text-red-700 font-medium flex items-center space-x-2">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                        <span>ออกจากระบบ</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-white shadow-sm">
+        <div class="container mx-auto px-4">
+            <div class="flex space-x-1 overflow-x-auto">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active px-6 py-3 rounded-t-lg font-medium whitespace-nowrap">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4 inline mr-2"></i>
+                    ภาพรวม
+                </button>
+                <button onclick="switchTab('students')" id="tab-students" class="tab-inactive px-6 py-3 rounded-t-lg font-medium whitespace-nowrap">
+                    <i data-lucide="users" class="w-4 h-4 inline mr-2"></i>
+                    จัดการนักศึกษา
+                </button>
+                <button onclick="switchTab('attendance')" id="tab-attendance" class="tab-inactive px-6 py-3 rounded-t-lg font-medium whitespace-nowrap">
+                    <i data-lucide="clipboard-list" class="w-4 h-4 inline mr-2"></i>
+                    ประวัติเช็คชื่อ
+                </button>
+                <button onclick="switchTab('settings')" id="tab-settings" class="tab-inactive px-6 py-3 rounded-t-lg font-medium whitespace-nowrap">
+                    <i data-lucide="map-pin" class="w-4 h-4 inline mr-2"></i>
+                    ตั้งค่าตำแหน่ง
+                </button>
+                <button onclick="switchTab('time')" id="tab-time" class="tab-inactive px-6 py-3 rounded-t-lg font-medium whitespace-nowrap">
+                    <i data-lucide="clock" class="w-4 h-4 inline mr-2"></i>
+                    ตั้งค่าเวลา
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4">
+        <!-- Dashboard Tab -->
+        <div id="content-dashboard" class="space-y-6">
+            <!-- Statistics -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                    <div class="text-3xl font-bold text-blue-600" id="stat-total-students">0</div>
+                    <div class="text-gray-600">นักศึกษาทั้งหมด</div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                    <div class="text-3xl font-bold text-green-600" id="stat-present-today">0</div>
+                    <div class="text-gray-600">มาเรียนวันนี้</div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                    <div class="text-3xl font-bold text-yellow-600" id="stat-late-today">0</div>
+                    <div class="text-gray-600">มาสายวันนี้</div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                    <div class="text-3xl font-bold text-red-600" id="stat-absent-today">0</div>
+                    <div class="text-gray-600">ขาดวันนี้</div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button onclick="switchTab('students')" class="bg-white rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow">
+                    <i data-lucide="user-plus" class="w-8 h-8 text-blue-600 mb-3"></i>
+                    <h3 class="font-semibold text-gray-800 mb-1">เพิ่มนักศึกษา</h3>
+                    <p class="text-gray-600 text-sm">เพิ่มข้อมูลนักศึกษาใหม่</p>
+                </button>
+                <button onclick="exportData()" class="bg-white rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow">
+                    <i data-lucide="download" class="w-8 h-8 text-green-600 mb-3"></i>
+                    <h3 class="font-semibold text-gray-800 mb-1">Export ข้อมูล</h3>
+                    <p class="text-gray-600 text-sm">ดาวน์โหลดรายงาน</p>
+                </button>
+                <button onclick="switchTab('settings')" class="bg-white rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow">
+                    <i data-lucide="map-pin" class="w-8 h-8 text-purple-600 mb-3"></i>
+                    <h3 class="font-semibold text-gray-800 mb-1">ตั้งค่าตำแหน่ง</h3>
+                    <p class="text-gray-600 text-sm">จัดการจุดเช็คชื่อ</p>
+                </button>
+                <button onclick="switchTab('time')" class="bg-white rounded-2xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow">
+                    <i data-lucide="clock" class="w-8 h-8 text-orange-600 mb-3"></i>
+                    <h3 class="font-semibold text-gray-800 mb-1">ตั้งค่าเวลา</h3>
+                    <p class="text-gray-600 text-sm">ปรับเวลาการเช็คชื่อ</p>
+                </button>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">กิจกรรมล่าสุด</h2>
+                <div id="recent-activity" class="space-y-3">
+                    <!-- Activity will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Students Management Tab -->
+        <div id="content-students" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">จัดการข้อมูลนักศึกษา</h2>
+                    <button onclick="showAddStudentModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2">
+                        <i data-lucide="user-plus" class="w-5 h-5"></i>
+                        <span>เพิ่มนักศึกษา</span>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[800px]">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">รหัสนักศึกษา</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">ชื่อ-สกุล</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">ห้อง</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">วันที่ลงทะเบียน</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">เครื่องที่ลงทะเบียน</th>
+                                <th class="p-3 text-center text-sm font-medium text-gray-700">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="students-table" class="divide-y divide-gray-200">
+                            <!-- Students data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance History Tab -->
+        <div id="content-attendance" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">ประวัติการเช็คชื่อ</h2>
+                    <div class="flex space-x-2">
+                        <input type="date" id="attendance-date" class="border rounded-lg px-3 py-2">
+                        <button onclick="exportAttendance()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2">
+                            <i data-lucide="download" class="w-5 h-5"></i>
+                            <span>Export</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[1000px]">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">รหัส</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">ชื่อ</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">ห้อง</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">เวลา</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">ตำแหน่ง</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">สถานะ</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">พื้นที่</th>
+                                <th class="p-3 text-left text-sm font-medium text-gray-700">เวลา</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-table" class="divide-y divide-gray-200">
+                            <!-- Attendance data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Settings Tab -->
+        <div id="content-settings" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6">ตั้งค่าตำแหน่งเช็คชื่อ</h2>
+                
+                <!-- Main Location -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4">ตำแหน่งหลัก (วิทยาลัย)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ละติจูด</label>
+                            <input type="number" step="any" id="main-lat" class="w-full border rounded-lg px-3 py-2" value="14.529033">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ลองจิจูด</label>
+                            <input type="number" step="any" id="main-lng" class="w-full border rounded-lg px-3 py-2" value="100.907445">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">รัศมี (เมตร)</label>
+                            <input type="number" id="main-radius" class="w-full border rounded-lg px-3 py-2" value="50">
+                        </div>
+                    </div>
+                    <button onclick="updateMainLocation()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        อัพเดทตำแหน่งหลัก
+                    </button>
+                </div>
+
+                <!-- Additional Locations -->
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-800">ตำแหน่งเพิ่มเติม</h3>
+                        <button onclick="showAddLocationModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2">
+                            <i data-lucide="plus" class="w-5 h-5"></i>
+                            <span>เพิ่มตำแหน่ง</span>
+                        </button>
+                    </div>
+                    
+                    <div id="additional-locations" class="space-y-3">
+                        <!-- Additional locations will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time Settings Tab -->
+        <div id="content-time" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6">ตั้งค่าเวลาเช็คชื่อ</h2>
+                
+                <div class="max-w-md space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">เวลาเริ่มต้น</label>
+                        <input type="time" id="start-time" class="w-full border rounded-lg px-3 py-2" value="06:00">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">เวลาสิ้นสุด</label>
+                        <input type="time" id="end-time" class="w-full border rounded-lg px-3 py-2" value="08:30">
+                    </div>
+                    
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div class="flex items-start space-x-3">
+                            <i data-lucide="info" class="w-5 h-5 text-yellow-600 mt-0.5"></i>
+                            <div>
+                                <p class="text-yellow-800 text-sm">
+                                    นักศึกษาจะสามารถเช็คชื่อได้ในช่วงเวลาที่กำหนดเท่านั้น
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="updateTimeSettings()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium">
+                        บันทึกการตั้งค่าเวลา
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 flex items-center space-x-4">
+            <div class="loader w-8 h-8 rounded-full border-4 border-gray-200 border-t-blue-600"></div>
+            <span class="text-gray-700" id="loading-text">กำลังโหลด...</span>
+        </div>
+    </div>
+
+    <!-- Add Student Modal -->
+    <div id="add-student-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">เพิ่มนักศึกษา</h3>
+            <form id="add-student-form" onsubmit="handleAddStudent(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">รหัสนักศึกษา</label>
+                    <input type="text" id="new-student-id" required class="w-full border rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อ-สกุล</label>
+                    <input type="text" id="new-student-name" required class="w-full border rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ห้องเรียน</label>
+                    <input type="text" id="new-student-class" required class="w-full border rounded-lg px-3 py-2">
+                </div>
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="hideAddStudentModal()" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                        เพิ่ม
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Location Modal -->
+    <div id="add-location-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">เพิ่มตำแหน่งเช็คชื่อ</h3>
+            <form id="add-location-form" onsubmit="handleAddLocation(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อตำแหน่ง</label>
+                    <input type="text" id="new-location-name" required class="w-full border rounded-lg px-3 py-2" placeholder="เช่น อาคาร 1, โรงยิม">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">ละติจูด</label>
+                        <input type="number" step="any" id="new-location-lat" required class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">ลองจิจูด</label>
+                        <input type="number" step="any" id="new-location-lng" required class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                </div>
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="hideAddLocationModal()" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">
+                        เพิ่ม
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let gasWebAppUrl = '';
+        let currentTeacher = null;
+        let students = [];
+        let attendance = [];
+        let settings = {};
+
+        // Initialize
+        window.onload = async () => {
+            lucide.createIcons();
+            
+            // Check teacher session
+            const teacherSession = localStorage.getItem('teacherSession');
+            if (!teacherSession) {
+                window.location.href = 'admin-login.html';
+                return;
+            }
+            
+            currentTeacher = JSON.parse(teacherSession);
+            document.getElementById('admin-info').textContent = 
+                `ครู ${currentTeacher.name} (${currentTeacher.teacherId})`;
+            
+            // Load GAS URL
+            gasWebAppUrl = localStorage.getItem('gasWebAppUrl');
+            if (!gasWebAppUrl) {
+                alert('กรุณาตั้งค่า Google Apps Script URL ก่อน');
+                window.location.href = 'setup.html';
+                return;
+            }
+
+            // Load initial data
+            await loadDashboardData();
+        };
+
+        // Tab management
+        function switchTab(tabName) {
+            // Hide all tabs
+            ['dashboard', 'students', 'attendance', 'settings', 'time'].forEach(tab => {
+                document.getElementById(`content-${tab}`).classList.add('hidden');
+                document.getElementById(`tab-${tab}`).className = 
+                    'tab-inactive px-6 py-3 rounded-t-lg font-medium whitespace-nowrap';
+            });
+
+            // Show selected tab
+            document.getElementById(`content-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).className = 
+                'tab-active px-6 py-3 rounded-t-lg font-medium whitespace-nowrap';
+
+            // Load tab-specific data
+            switch(tabName) {
+                case 'students':
+                    loadStudentsData();
+                    break;
+                case 'attendance':
+                    loadAttendanceData();
+                    break;
+                case 'settings':
+                    loadLocationSettings();
+                    break;
+                case 'time':
+                    loadTimeSettings();
+                    break;
+            }
+        }
+
+        // Dashboard functions
+        async function loadDashboardData() {
+            showLoading('กำลังโหลดข้อมูล...');
+            
+            try {
+                // Load students
+                const studentsResponse = await apiCall({ action: 'getStudents' });
+                if (studentsResponse.success) {
+                    students = studentsResponse.data;
+                    document.getElementById('stat-total-students').textContent = students.length;
+                }
+
+                // Load attendance
+                const attendanceResponse = await apiCall({ action: 'getAttendance' });
+                if (attendanceResponse.success) {
+                    attendance = attendanceResponse.data;
+                    updateDashboardStats();
+                    loadRecentActivity();
+                }
+
+                // Load settings
+                const settingsResponse = await apiCall({ action: 'getSettings' });
+                if (settingsResponse.success) {
+                    settings = settingsResponse.data;
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                alert('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+            }
+
+            hideLoading();
+        }
+
+        function updateDashboardStats() {
+            const today = new Date().toDateString();
+            const todayAttendance = attendance.filter(record => 
+                new Date(record.timestamp).toDateString() === today
+            );
+
+            const presentCount = todayAttendance.filter(record => 
+                record.status === 'มาเรียน'
+            ).length;
+
+            const lateCount = todayAttendance.filter(record => 
+                record.status === 'มาสาย'
+            ).length;
+
+            const absentCount = students.length - presentCount - lateCount;
+
+            document.getElementById('stat-present-today').textContent = presentCount;
+            document.getElementById('stat-late-today').textContent = lateCount;
+            document.getElementById('stat-absent-today').textContent = Math.max(0, absentCount);
+        }
+
+        function loadRecentActivity() {
+            const container = document.getElementById('recent-activity');
+            const recentActivities = attendance
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .slice(0, 10);
+
+            if (recentActivities.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">ไม่มีกิจกรรมล่าสุด</p>';
+                return;
+            }
+
+            container.innerHTML = recentActivities.map(record => {
+                const time = new Date(record.timestamp).toLocaleString('th-TH');
+                const statusColor = record.status === 'มาเรียน' ? 'text-green-600' : 
+                                  record.status === 'มาสาย' ? 'text-yellow-600' : 'text-red-600';
+                
+                return `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <i data-lucide="user" class="w-4 h-4 text-gray-400"></i>
+                            <div>
+                                <p class="font-medium">${record.name}</p>
+                                <p class="text-sm text-gray-500">${record.id} • ${time}</p>
+                            </div>
+                        </div>
+                        <span class="${statusColor} font-medium">${record.status}</span>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // Students management
+        async function loadStudentsData() {
+            showLoading('กำลังโหลดข้อมูลนักศึกษา...');
+            
+            try {
+                const response = await apiCall({ action: 'getStudents' });
+                if (response.success) {
+                    students = response.data;
+                    renderStudentsTable();
+                }
+            } catch (error) {
+                console.error('Error loading students data:', error);
+                alert('เกิดข้อผิดพลาดในการโหลดข้อมูลนักศึกษา');
+            }
+
+            hideLoading();
+        }
+
+        function renderStudentsTable() {
+            const container = document.getElementById('students-table');
+            
+            if (students.length === 0) {
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="p-4 text-center text-gray-500">
+                            ไม่มีข้อมูลนักศึกษา
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            container.innerHTML = students.map(student => {
+                const regDate = student.registrationdate ? 
+                    new Date(student.registrationdate).toLocaleDateString('th-TH') : '-';
+                
+                return `
+                    <tr>
+                        <td class="p-3">${student.studentid}</td>
+                        <td class="p-3">${student.name}</td>
+                        <td class="p-3">${student.class}</td>
+                        <td class="p-3">${regDate}</td>
+                        <td class="p-3">
+                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                ${student.deviceid ? student.deviceid.substring(0, 8) + '...' : '-'}
+                            </span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <button onclick="deleteStudent('${student.studentid}', ${student.rowIndex})" 
+                                    class="text-red-600 hover:text-red-800 p-1">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function showAddStudentModal() {
+            document.getElementById('add-student-modal').classList.remove('hidden');
+        }
+
+        function hideAddStudentModal() {
+            document.getElementById('add-student-modal').classList.add('hidden');
+            document.getElementById('add-student-form').reset();
+        }
+
+        async function handleAddStudent(event) {
+            event.preventDefault();
+            
+            const studentData = {
+                id: document.getElementById('new-student-id').value.trim(),
+                name: document.getElementById('new-student-name').value.trim(),
+                class: document.getElementById('new-student-class').value.trim(),
+                imageData: '', // No image for manual add
+                deviceId: 'manual_add' // Mark as manually added
+            };
+
+            try {
+                const response = await apiCall({ 
+                    action: 'addStudent', 
+                    data: studentData 
+                });
+
+                if (response.success) {
+                    alert('เพิ่มนักศึกษาสำเร็จ');
+                    hideAddStudentModal();
+                    loadStudentsData();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + response.error);
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + error.message);
+            }
+        }
+
+        async function deleteStudent(studentId, rowIndex) {
+            if (!confirm(`ยืนยันการลบนักศึกษา: ${studentId}?`)) return;
+
+            try {
+                const response = await apiCall({ 
+                    action: 'deleteStudent', 
+                    data: { rowIndex } 
+                });
+
+                if (response.success) {
+                    alert('ลบข้อมูลสำเร็จ');
+                    loadStudentsData();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + response.error);
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + error.message);
+            }
+        }
+
+        // Attendance management
+        async function loadAttendanceData() {
+            showLoading('กำลังโหลดประวัติเช็คชื่อ...');
+            
+            try {
+                const response = await apiCall({ action: 'getAttendance' });
+                if (response.success) {
+                    attendance = response.data;
+                    renderAttendanceTable();
+                }
+            } catch (error) {
+                console.error('Error loading attendance data:', error);
+                alert('เกิดข้อผิดพลาดในการโหลดประวัติเช็คชื่อ');
+            }
+
+            hideLoading();
+        }
+
+        function renderAttendanceTable() {
+            const container = document.getElementById('attendance-table');
+            const dateFilter = document.getElementById('attendance-date').value;
+            
+            let filteredAttendance = attendance;
+            if (dateFilter) {
+                filteredAttendance = attendance.filter(record => 
+                    record.timestamp.startsWith(dateFilter)
+                );
+            }
+
+            if (filteredAttendance.length === 0) {
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="p-4 text-center text-gray-500">
+                            ไม่มีข้อมูลการเช็คชื่อ
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Sort by timestamp descending
+            filteredAttendance.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            container.innerHTML = filteredAttendance.map(record => {
+                const time = new Date(record.timestamp).toLocaleString('th-TH');
+                
+                const statusBadge = record.status === 'มาเรียน' ? 
+                    '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">มาเรียน</span>' :
+                    record.status === 'มาสาย' ?
+                    '<span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">มาสาย</span>' :
+                    '<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">ขาด</span>';
+
+                const locationBadge = record.locationStatus === 'ในพื้นที่' ?
+                    '<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">ในพื้นที่</span>' :
+                    '<span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs">นอกพื้นที่</span>';
+
+                const timeBadge = record.timeStatus === 'ตรงเวลา' ?
+                    '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">ตรงเวลา</span>' :
+                    '<span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">สาย</span>';
+
+                return `
+                    <tr>
+                        <td class="p-3">${record.id}</td>
+                        <td class="p-3">${record.name}</td>
+                        <td class="p-3">${record.class}</td>
+                        <td class="p-3">${time}</td>
+                        <td class="p-3">
+                            <span class="text-xs text-gray-500">${record.location}</span>
+                        </td>
+                        <td class="p-3">${statusBadge}</td>
+                        <td class="p-3">${locationBadge}</td>
+                        <td class="p-3">${timeBadge}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function exportAttendance() {
+            let csv = 'รหัสนักศึกษา,ชื่อ-สกุล,ห้อง,เวลา,ตำแหน่ง,สถานะ,พื้นที่,เวลา\n';
+            
+            attendance.forEach(record => {
+                csv += `"${record.id}","${record.name}","${record.class}","${record.timestamp}","${record.location}","${record.status}","${record.locationStatus}","${record.timeStatus}"\n`;
+            });
+            
+            downloadCSV(csv, `attendance_${new Date().toISOString().split('T')[0]}.csv`);
+        }
+
+        // Location settings
+        async function loadLocationSettings() {
+            showLoading('กำลังโหลดการตั้งค่า...');
+            
+            try {
+                const response = await apiCall({ action: 'getSettings' });
+                if (response.success) {
+                    settings = response.data;
+                    
+                    // Update main location form
+                    document.getElementById('main-lat').value = settings.COLLEGE_LAT || '14.529033';
+                    document.getElementById('main-lng').value = settings.COLLEGE_LNG || '100.907445';
+                    document.getElementById('main-radius').value = settings.ALLOWED_RADIUS || '50';
+                    
+                    // Load additional locations
+                    await loadAdditionalLocations();
+                }
+            } catch (error) {
+                console.error('Error loading location settings:', error);
+            }
+
+            hideLoading();
+        }
+
+        async function loadAdditionalLocations() {
+            try {
+                const response = await apiCall({ action: 'getAdditionalLocations' });
+                if (response.success) {
+                    const locations = response.data;
+                    const container = document.getElementById('additional-locations');
+                    
+                    if (locations.length === 0) {
+                        container.innerHTML = '<p class="text-gray-500 text-center py-4">ไม่มีตำแหน่งเพิ่มเติม</p>';
+                        return;
+                    }
+
+                    container.innerHTML = locations.map((location, index) => `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <p class="font-medium">${location.name}</p>
+                                <p class="text-sm text-gray-500">
+                                    ${location.lat}, ${location.lng}
+                                </p>
+                            </div>
+                            <button onclick="deleteAdditionalLocation(${index})" 
+                                    class="text-red-600 hover:text-red-800 p-1">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `).join('');
+
+                    lucide.createIcons();
+                }
+            } catch (error) {
+                console.error('Error loading additional locations:', error);
+            }
+        }
+
+        async function updateMainLocation() {
+            const updates = {
+                COLLEGE_LAT: document.getElementById('main-lat').value,
+                COLLEGE_LNG: document.getElementById('main-lng').value,
+                ALLOWED_RADIUS: document.getElementById('main-radius').value
+            };
+
+            try {
+                const response = await apiCall({
+                    action: 'updateSettings',
+                    data: { settings: updates }
+                });
+
+                if (response.success) {
+                    alert('อัพเดทตำแหน่งหลักสำเร็จ');
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + response.error);
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + error.message);
+            }
+        }
+
+        function showAddLocationModal() {
+            document.getElementById('add-location-modal').classList.remove('hidden');
+        }
+
+        function hideAddLocationModal() {
+            document.getElementById('add-location-modal').classList.add('hidden');
+            document.getElementById('add-location-form').reset();
+        }
+
+        async function handleAddLocation(event) {
+            event.preventDefault();
+            
+            const locationData = {
+                name: document.getElementById('new-location-name').value.trim(),
+                lat: document.getElementById('new-location-lat').value,
+                lng: document.getElementById('new-location-lng').value
+            };
+
+            try {
+                const response = await apiCall({
+                    action: 'addAdditionalLocation',
+                    data: locationData
+                });
+
+                if (response.success) {
+                    alert('เพิ่มตำแหน่งสำเร็จ');
+                    hideAddLocationModal();
+                    loadAdditionalLocations();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + response.error);
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + error.message);
+            }
+        }
+
+        async function deleteAdditionalLocation(index) {
+            if (!confirm('ยืนยันการลบตำแหน่งนี้?')) return;
+
+            try {
+                const response = await apiCall({
+                    action: 'deleteAdditionalLocation',
+                    data: { index }
+                });
+
+                if (response.success) {
+                    alert('ลบตำแหน่งสำเร็จ');
+                    loadAdditionalLocations();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + response.error);
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + error.message);
+            }
+        }
+
+        // Time settings
+        async function loadTimeSettings() {
+            try {
+                const response = await apiCall({ action: 'getSettings' });
+                if (response.success) {
+                    settings = response.data;
+                    
+                    document.getElementById('start-time').value = settings.START_TIME || '06:00';
+                    document.getElementById('end-time').value = settings.END_TIME || '08:30';
+                }
+            } catch (error) {
+                console.error('Error loading time settings:', error);
+            }
+        }
+
+        async function updateTimeSettings() {
+            const updates = {
+                START_TIME: document.getElementById('start-time').value,
+                END_TIME: document.getElementById('end-time').value
+            };
+
+            try {
+                const response = await apiCall({
+                    action: 'updateSettings',
+                    data: { settings: updates }
+                });
+
+                if (response.success) {
+                    alert('อัพเดทการตั้งค่าเวลาสำเร็จ');
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + response.error);
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + error.message);
+            }
+        }
+
+        // Utility functions
+        function exportData() {
+            let csv = 'รหัสนักศึกษา,ชื่อ-สกุล,ห้อง,วันที่ลงทะเบียน,เครื่องที่ลงทะเบียน\n';
+            
+            students.forEach(student => {
+                csv += `"${student.studentid}","${student.name}","${student.class}","${student.registrationdate}","${student.deviceid}"\n`;
+            });
+            
+            downloadCSV(csv, `students_${new Date().toISOString().split('T')[0]}.csv`);
+        }
+
+        function downloadCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function logout() {
+            localStorage.removeItem('teacherSession');
+            window.location.href = 'admin-login.html';
+        }
+
+        function showLoading(text = 'กำลังโหลด...') {
+            document.getElementById('loading-text').textContent = text;
+            document.getElementById('loading-overlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+
+        async function apiCall(payload) {
+            if (!gasWebAppUrl) {
+                throw new Error('GAS URL not configured');
+            }
+            
+            const response = await fetch(gasWebAppUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        }
+
+        // Event listeners
+        document.getElementById('attendance-date').addEventListener('change', renderAttendanceTable);
+    </script>
+</body>
+</html>
