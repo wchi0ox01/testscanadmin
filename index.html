@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ลงทะเบียนนักศึกษา - ระบบเช็คชื่อวิทยาลัย</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', 'Kanit', sans-serif; }
+        .loader { border-top-color: #3b82f6; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-4xl w-full">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="flex items-center justify-center space-x-3 mb-4">
+                <i data-lucide="user-plus" class="text-blue-600 w-8 h-8"></i>
+                <h1 class="text-3xl font-bold text-gray-800">ลงทะเบียนนักศึกษา</h1>
+            </div>
+            <p class="text-gray-600">กรุณากรอกข้อมูลและสแกนใบหน้าเพื่อลงทะเบียนครั้งแรก</p>
+        </div>
+
+        <!-- Registration Form -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+            <form id="registration-form" onsubmit="handleRegistration(event)" class="space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- ข้อมูลนักศึกษา -->
+                    <div class="space-y-6">
+                        <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">ข้อมูลส่วนตัว</h2>
+                        
+                        <div>
+                            <label for="reg-student-id" class="block text-sm font-medium text-gray-700 mb-2">
+                                รหัสนักศึกษา *
+                            </label>
+                            <input type="text" id="reg-student-id" required 
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                        </div>
+                        
+                        <div>
+                            <label for="reg-student-name" class="block text-sm font-medium text-gray-700 mb-2">
+                                ชื่อ-สกุล *
+                            </label>
+                            <input type="text" id="reg-student-name" required 
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                        </div>
+                        
+                        <div>
+                            <label for="reg-student-class" class="block text-sm font-medium text-gray-700 mb-2">
+                                ห้องเรียน *
+                            </label>
+                            <input type="text" id="reg-student-class" required 
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                        </div>
+                    </div>
+                    
+                    <!-- สแกนใบหน้า -->
+                    <div class="space-y-6">
+                        <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">สแกนใบหน้า</h2>
+                        
+                        <div class="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
+                            <div id="input-camera" class="flex flex-col items-center">
+                                <div class="w-full max-w-xs mx-auto aspect-[4/3] bg-gray-200 rounded-lg overflow-hidden relative mb-4">
+                                    <video id="capture-video" class="w-full h-full object-cover" autoplay playsinline></video>
+                                    <canvas id="capture-canvas" class="hidden"></canvas>
+                                </div>
+                                
+                                <button type="button" onclick="captureFacePhoto()" 
+                                        class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium w-full max-w-xs flex items-center justify-center space-x-2">
+                                    <i data-lucide="camera" class="w-5 h-5"></i>
+                                    <span>ถ่ายภาพใบหน้า</span>
+                                </button>
+                                
+                                <p class="text-sm text-gray-500 mt-3 text-center">
+                                    <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                                    กรุณาถ่ายภาพใบหน้าให้ชัดเจน ในที่ที่มีแสงสว่างเพียงพอ
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div id="photo-preview" class="hidden">
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <div class="flex items-center space-x-2 text-green-700 mb-2">
+                                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                                    <span class="font-medium">ถ่ายภาพสำเร็จแล้ว</span>
+                                </div>
+                                <p class="text-sm text-green-600">คุณสามารถกดปุ่มลงทะเบียนได้เลย</p>
+                            </div>
+                        </div>
+                        
+                        <input type="hidden" id="reg-student-image-data">
+                    </div>
+                </div>
+                
+                <!-- ข้อกำหนด -->
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div class="flex items-start space-x-3">
+                        <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0"></i>
+                        <div>
+                            <h3 class="font-semibold text-yellow-800 mb-1">ข้อกำหนดการใช้งาน:</h3>
+                            <ul class="text-yellow-700 text-sm space-y-1">
+                                <li>• การลงทะเบียนนี้จะผูกกับอุปกรณ์นี้เท่านั้น</li>
+                                <li>• หลังจากลงทะเบียนแล้ว จะไม่สามารถลงทะเบียนใหม่ได้</li>
+                                <li>• ข้อมูลใบหน้าจะใช้สำหรับการเช็คชื่อเท่านั้น</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Submit Button -->
+                <div class="flex justify-center pt-4">
+                    <button type="submit" id="register-submit-btn" 
+                            class="bg-green-600 text-white px-12 py-4 rounded-lg hover:bg-green-700 transition-colors text-lg font-semibold flex items-center space-x-2 min-w-[200px] justify-center">
+                        <i data-lucide="user-check" class="w-6 h-6"></i>
+                        <span>ลงทะเบียน</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Footer -->
+        <div class="text-center mt-6">
+            <p class="text-gray-500 text-sm">
+                มีบัญชีแล้ว? <a href="scan.html" class="text-blue-600 hover:text-blue-700 font-medium">ไปที่หน้าสแกนใบหน้า</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 flex items-center space-x-4">
+            <div class="loader w-8 h-8 rounded-full border-4 border-gray-200 border-t-blue-600"></div>
+            <span class="text-gray-700">กำลังประมวลผล...</span>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let gasWebAppUrl = '';
+        let captureStream = null;
+        let deviceId = '';
+
+        // Initialize
+        window.onload = async () => {
+            lucide.createIcons();
+            
+            // Get device ID
+            deviceId = await getDeviceId();
+            
+            // Load GAS URL
+            gasWebAppUrl = localStorage.getItem('gasWebAppUrl');
+            if (!gasWebAppUrl) {
+                alert('กรุณาตั้งค่า Google Apps Script URL ก่อน');
+                window.location.href = 'setup.html';
+                return;
+            }
+            
+            // Check if already registered
+            await checkExistingRegistration();
+            
+            // Start camera
+            await startCaptureVideo();
+        };
+
+        // Generate unique device ID
+        async function getDeviceId() {
+            let deviceId = localStorage.getItem('deviceId');
+            if (!deviceId) {
+                // Generate a simple device ID (in real app, use more sophisticated method)
+                deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                localStorage.setItem('deviceId', deviceId);
+            }
+            return deviceId;
+        }
+
+        // Check if device already registered
+        async function checkExistingRegistration() {
+            try {
+                const response = await apiCall({
+                    action: 'getStudentByDevice',
+                    data: { deviceId }
+                });
+                
+                if (response.success && response.data) {
+                    alert('อุปกรณ์นี้ได้ลงทะเบียนไปแล้ว กรุณาใช้หน้าสแกนใบหน้า');
+                    window.location.href = 'scan.html';
+                }
+            } catch (error) {
+                console.error('Error checking registration:', error);
+            }
+        }
+
+        // Handle registration
+        async function handleRegistration(event) {
+            event.preventDefault();
+            
+            const submitBtn = document.getElementById('register-submit-btn');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            
+            submitBtn.disabled = true;
+            loadingOverlay.classList.remove('hidden');
+
+            const studentData = {
+                id: document.getElementById('reg-student-id').value.trim(),
+                name: document.getElementById('reg-student-name').value.trim(),
+                class: document.getElementById('reg-student-class').value.trim(),
+                imageData: document.getElementById('reg-student-image-data').value,
+                deviceId: deviceId
+            };
+
+            // Validation
+            if (!studentData.imageData) {
+                alert('กรุณาถ่ายภาพใบหน้าก่อนลงทะเบียน');
+                submitBtn.disabled = false;
+                loadingOverlay.classList.add('hidden');
+                return;
+            }
+
+            try {
+                const response = await apiCall({ 
+                    action: 'addStudent', 
+                    data: studentData 
+                });
+                
+                if (response.success) {
+                    // Save student info to localStorage for scan page
+                    localStorage.setItem('currentStudent', JSON.stringify({
+                        studentid: studentData.id,
+                        name: studentData.name,
+                        class: studentData.class,
+                        imagedatabase64: studentData.imageData,
+                        deviceid: deviceId
+                    }));
+                    
+                    alert('ลงทะเบียนสำเร็จ! ตอนนี้คุณสามารถใช้หน้าสแกนใบหน้าได้');
+                    window.location.href = 'scan.html';
+                } else {
+                    alert('เกิดข้อผิดพลาดในการลงทะเบียน: ' + response.error);
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + error.message);
+            }
+
+            submitBtn.disabled = false;
+            loadingOverlay.classList.add('hidden');
+        }
+
+        // Camera functions
+        async function startCaptureVideo() {
+            try {
+                if (captureStream) {
+                    stopCaptureVideo();
+                }
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                captureStream = stream;
+                document.getElementById('capture-video').srcObject = stream;
+            } catch (e) {
+                console.error("Could not start video for capture", e);
+                alert('ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้อง');
+            }
+        }
+
+        function stopCaptureVideo() {
+            if (captureStream) {
+                captureStream.getTracks().forEach(track => track.stop());
+                captureStream = null;
+            }
+        }
+
+        function captureFacePhoto() {
+            const videoEl = document.getElementById('capture-video');
+            if (!videoEl.srcObject) {
+                alert('กรุณาเปิดกล้องก่อนถ่ายภาพ');
+                return;
+            }
+            
+            const canvas = document.getElementById('capture-canvas');
+            const context = canvas.getContext('2d');
+            
+            canvas.width = videoEl.videoWidth;
+            canvas.height = videoEl.videoHeight;
+            
+            // Draw current frame from video
+            context.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64 with compression
+            const imageData = canvas.toDataURL('image/jpeg', 0.7);
+            document.getElementById('reg-student-image-data').value = imageData;
+            
+            // Show success message
+            document.getElementById('photo-preview').classList.remove('hidden');
+            
+            // Stop camera after capture
+            stopCaptureVideo();
+        }
+
+        // API call function
+        async function apiCall(payload) {
+            if (!gasWebAppUrl) {
+                throw new Error('GAS URL not configured');
+            }
+            
+            const response = await fetch(gasWebAppUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopCaptureVideo();
+        });
+    </script>
+</body>
+</html>
